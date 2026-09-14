@@ -39,4 +39,5 @@ build/
 
 config.properties
 data/
+logs/
 *.db
