@@ -2,8 +2,9 @@ package com.example.rep3.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.io.Serializable;
 
-public class Task {
+public class Task implements Serializable {
 
     private int id;
     private String title;
@@ -30,6 +31,25 @@ public class Task {
         this.status = status;
         this.category = category;
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public Task(int id,
+                String title,
+                String description,
+                String executor,
+                LocalDate deadline,
+                TaskStatus status,
+                TaskCategory category,
+                LocalDateTime updatedAt) {
+
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.executor = executor;
+        this.deadline = deadline;
+        this.status = status;
+        this.category = category;
+        this.updatedAt = updatedAt;
     }
 
     public int getId() {

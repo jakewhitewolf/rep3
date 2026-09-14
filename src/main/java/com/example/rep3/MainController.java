@@ -1,6 +1,5 @@
 package com.example.rep3;
 
-import com.example.rep3.dao.CollectionTaskDAO;
 import com.example.rep3.model.Task;
 import com.example.rep3.model.TaskCategory;
 import com.example.rep3.model.TaskStatus;
@@ -21,6 +20,13 @@ import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.time.LocalDate;
 import java.util.List;
+
+import com.example.rep3.config.ConfigLoader;
+import com.example.rep3.dao.TaskDAO;
+import com.example.rep3.factory.CollectionDAOFactory;
+import com.example.rep3.factory.DatabaseDAOFactory;
+import com.example.rep3.factory.FileDAOFactory;
+import com.example.rep3.service.SynchronizationService;
 
 public class MainController {
 
@@ -86,9 +92,56 @@ public class MainController {
     private final ObservableList<Task> tableData =
             FXCollections.observableArrayList();
 
+    private SynchronizationService synchronizationService;
+    private TaskDAO currentDAO;
+
     @FXML
     public void initialize() {
-        taskService = new TaskService(new CollectionTaskDAO());
+        ConfigLoader config = new ConfigLoader();
+
+        TaskDAO collectionDAO =
+                new CollectionDAOFactory().createTaskDAO();
+
+        TaskDAO fileDAO =
+                new FileDAOFactory(
+                        config.getFilePath()
+                ).createTaskDAO();
+
+        TaskDAO databaseDAO =
+                new DatabaseDAOFactory(
+                        config.getDatabaseUrl()
+                ).createTaskDAO();
+
+        switch (config.getDataSource().toLowerCase()) {
+            case "collection":
+                currentDAO = collectionDAO;
+                break;
+
+            case "file":
+                currentDAO = fileDAO;
+                break;
+
+            case "database":
+                currentDAO = databaseDAO;
+                break;
+
+            default:
+                throw new IllegalArgumentException(
+                        "Неизвестный источник данных: "
+                                + config.getDataSource()
+                );
+        }
+
+        taskService = new TaskService(currentDAO);
+
+        synchronizationService =
+                new SynchronizationService(
+                        List.of(
+                                collectionDAO,
+                                fileDAO,
+                                databaseDAO
+                        )
+                );
 
         initializeTable();
         initializeControls();
@@ -96,7 +149,10 @@ public class MainController {
 
         refreshTable();
 
-        dataSourceLabel.setText("Collection");
+        dataSourceLabel.setText(
+                config.getDataSource()
+        );
+
         statusLabel.setText("Готово");
     }
 
@@ -381,13 +437,34 @@ public class MainController {
 
     @FXML
     private void onSynchronize() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Синхронизация");
-        alert.setHeaderText("Синхронизация источников данных");
-        alert.setContentText(
-                "Функция станет доступна после подключения файлового источника и базы данных."
-        );
-        alert.showAndWait();
+        try {
+            synchronizationService.synchronize();
+
+            refreshTable();
+
+            statusLabel.setText(
+                    "Источники данных синхронизированы"
+            );
+
+            Alert alert =
+                    new Alert(Alert.AlertType.INFORMATION);
+
+            alert.setTitle("Синхронизация");
+            alert.setHeaderText(
+                    "Синхронизация завершена"
+            );
+            alert.setContentText(
+                    "Данные коллекции, файла и базы данных синхронизированы"
+            );
+
+            alert.showAndWait();
+
+        } catch (RuntimeException e) {
+            showError(
+                    "Ошибка синхронизации: "
+                            + e.getMessage()
+            );
+        }
     }
 
     private void refreshTable() {
