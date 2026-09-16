@@ -5,5 +5,6 @@ module com.example.rep3 {
 
 
     opens com.example.rep3 to javafx.fxml;
+    opens com.example.rep3.model to javafx.base;
     exports com.example.rep3;
 }
